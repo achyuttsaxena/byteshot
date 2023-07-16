@@ -1,0 +1,451 @@
+|00 @System     &vector $2 &wst      $1 &rst    $1 &eaddr  $2 &ecode  $1 &pad     $1 &r       $2 &g      $2 &b     $2 &debug  $1 &halt $1
+|10 @Console    &vector $2 &read     $1 &pad    $5 &write  $1 &error  $1
+|20 @Screen     &vector $2 &width    $2 &height $2 &auto   $1 &pad    $1 &x       $2 &y       $2 &addr   $2 &pixel $1 &sprite $1
+|30 @Audio0     &vector $2 &position $2 &output $1 &pad    $3 &adsr   $2 &length  $2 &addr    $2 &volume $1 &pitch $1
+|40 @Audio1     &vector $2 &position $2 &output $1 &pad    $3 &adsr   $2 &length  $2 &addr    $2 &volume $1 &pitch $1
+|50 @Audio2     &vector $2 &position $2 &output $1 &pad    $3 &adsr   $2 &length  $2 &addr    $2 &volume $1 &pitch $1
+|60 @Audio3     &vector $2 &position $2 &output $1 &pad    $3 &adsr   $2 &length  $2 &addr    $2 &volume $1 &pitch $1
+|80 @Controller &vector $2 &button   $1 &key    $1 &func   $1
+
+|0000
+
+	@player &x $2 &y $2 &r $2
+	@counter $1
+	@sequence &1 $1 &2 $1 &3 $1 &4 $1 
+	@line &x $2 &y $2 &dx $2 &dy $2 &e1 $2
+
+	@ammo $1
+
+|0100
+
+	#0ff2 .System/r DEO2
+    #0f1f .System/g DEO2
+    #0f35 .System/b DEO2
+
+	;on-frame .Screen/vector DEO2
+	;on-button .Controller/vector DEO2
+
+
+	#0040 .player/x STZ2
+	#0010 .player/y STZ2
+
+	;update JSR2
+
+BRK
+
+@on-frame ( -> )
+
+	[ LIT &rate $1 ] INC DUP #02 EQU ,&go JCN
+		,&rate STR BRK &go
+	POP #00 ,&rate STR
+
+	.Controller/button DEI
+	DUP #10 AND #00 EQU ,&no-u JCN
+		.player/r LDZ2 #0008 ;raycast JSR2
+		OVR2 OVR2 ;get-tile JSR2 NIP NIP
+
+		#00 NEQ ,&col-u JCN
+		.player/y STZ2
+		.player/x STZ2 ,&no-u JMP
+		&col-u
+			POP2 POP2
+		&no-u 
+	DUP #20 AND #00 EQU ,&no-d JCN
+		.player/r LDZ2 #0200 ADD2 #03ff AND2 #0008 ;raycast JSR2
+		OVR2 OVR2 ;get-tile JSR2 NIP NIP
+
+		#00 NEQ ,&col-d JCN
+		.player/y STZ2
+		.player/x STZ2 ,&no-d JMP
+		&col-d
+			POP2 POP2
+		&no-d
+	DUP #40 AND #00 EQU ,&no-l JCN
+		.player/r LDZ2k #0018 SUB2 #03ff AND2 ROT STZ2
+		&no-l
+	DUP #80 AND #00 EQU ,&no-r JCN
+		.player/r LDZ2k #0018 ADD2 #03ff AND2 ROT STZ2
+		&no-r
+	DUP #02 AND #00 EQU ,&no-b JCN
+		.player/r LDZ2k #0018 ADD2 #03ff AND2 ROT STZ2
+		&no-b
+	DUP #00 EQU ,&no-null JCN
+		;update JSR2
+		&no-null
+	POP
+
+BRK
+
+@update ( -- )
+
+	;draw-viewport JSR2
+	;draw-minimap  JSR2
+
+JMP2r
+
+@on-button ( -> )
+
+	.Controller/button DEI #01 AND #00 EQU ,&no-a JCN
+		;shoot JSR2
+	&no-a
+
+	;update JSR2
+
+BRK
+
+@draw-viewport ( -- )
+
+	#00 .Screen/auto DEO
+	#0100 #0000
+	&h
+		DUP2 #0090 ADD2 .Screen/x DEO2
+		DUP2 .player/r LDZ2 ( eye ) #0080 SUB2 ADD2 #03ff AND2
+			;ray-tile JSR2 POP2
+			;draw-col JSR2
+		INC2 GTH2k ,&h JCN
+	POP2 POP2
+
+JMP2r
+
+@draw-col ( distance* color -- )
+
+	,&color STR
+	( scale ) #01 SFT2 NIP
+	STH
+	#8000
+	&l
+		#00 OVR .Screen/y DEO2
+		DUP STHkr [ LIT &color $1 ] ;get-color JSR2 .Screen/pixel DEO
+		INC GTHk ,&l JCN
+	POP2
+	POPr
+
+JMP2r
+
+
+@get-color ( y distance color -- color )
+
+	ROT ROT
+	OVR #40 GTH ,&bottom JCN
+	#01 SFT GTH MUL
+
+JMP2r
+	&bottom
+		#00 SWP SUB #01 SFT LTH MUL
+	JMP2r
+
+@draw-minimap ( -- )
+
+	#01 .Screen/auto DEO
+	;fill-icn .Screen/addr DEO2
+	#0000 .Screen/y DEO2
+	#1000
+	&ver
+		STHk
+		#0000 .Screen/x DEO2
+		#1000
+		&hor
+			( id ) #00 OVR STHkr #40 SFT ADD
+				;world ADD2 LDA .Screen/sprite DEO
+			INC GTHk ,&hor JCN
+		POP2
+		POPr
+		.Screen/y DEI2k #0008 ADD2 ROT DEO2
+		INC GTHk ,&ver JCN
+	POP2
+
+	( draw player )
+
+	.player/x LDZ2 ( scale ) #01 SFT2 #0003 SUB2 .Screen/x DEO2
+	.player/y LDZ2 ( scale ) #01 SFT2 #0003 SUB2 .Screen/y DEO2
+	;player-icn .Screen/addr DEO2
+	#05 .Screen/sprite DEO
+
+	.player/x LDZ2 .player/y LDZ2 ;to-scale JSR2
+	.player/r LDZ2 ;ray-pos JSR2 ;to-scale JSR2
+		#01 ;draw-line JSR2
+
+	.player/x LDZ2 .player/y LDZ2 ;to-scale JSR2
+	.player/r LDZ2 ( eye ) #0060 SUB2 #03ff AND2 ;ray-pos JSR2 ;to-scale JSR2
+		#02 ;draw-line JSR2
+
+	.player/x LDZ2 .player/y LDZ2 ;to-scale JSR2
+	.player/r LDZ2 ( eye ) #0060 ADD2 #03ff AND2 ;ray-pos JSR2 ;to-scale JSR2
+		#02 ;draw-line JSR2
+ 
+JMP2r
+
+@fill-icn
+	ffff ffff ffff ffff
+
+@to-scale ( x* y* -- x* y* )
+
+	( scale ) SWP2 #01 SFT2 
+	( scale ) SWP2 #01 SFT2
+
+JMP2r
+
+@ray-pos ( angle* -- x* y* )
+
+	,&angle STR2
+	#0100 #0001
+	&r
+		[ LIT2 &angle $2 ] OVR2 ;raycast JSR2
+			DUP2 ,&y STR2
+			OVR2 ,&x STR2
+			;get-tile JSR2 NIP NIP ,&end JCN
+		INC2 GTH2k ,&r JCN
+	&end
+	POP2 POP2
+	( res ) [ LIT2 &x $2 ] [ LIT2 &y $2 ]
+
+JMP2r
+
+@ray-tile ( angle* -- distance* color tile-address )
+
+	,&angle STR2
+	#0100 #0002
+	&r
+		DUP2 ,&distance STR2
+		[ LIT2 &angle $2 ] OVR2 ;raycast JSR2
+			;get-tile JSR2
+			DUP ,&color STR ROT ROT ,&tile-addr STR2
+			,&end JCN
+		INC2 GTH2k ,&r JCN
+	&end
+	POP2 POP2
+	( res ) [ LIT2 &distance $2 ] [ LIT &color $1 ] [ LIT2 &tile-addr $2 ]
+
+JMP2r
+
+@raycast ( angle* range* -- x* y* )
+
+	STH2
+	#10 SFT2 ;sin60 ADD2 LDA2
+	#00 SWP STH2kr MUL2 #08 SFT2 ,&y STR2
+	#00 SWP STH2kr MUL2 #08 SFT2 ,&x STR2
+	[ LIT2 &x $2 ] .player/x LDZ2 STH2kr #01 SFT2 SUB2 ADD2
+	[ LIT2 &y $2 ] .player/y LDZ2 STH2r #01 SFT2 SUB2 ADD2
+
+JMP2r
+
+@get-tile ( x* y* -- tile-addr tile )
+
+	;to-scale JSR2
+	#43 SFT2 SWP2 #03 SFT2 ADD2
+		;world ADD2 DUP2 LDA 
+
+JMP2r
+
+@draw-line ( x1* y1* x2* y2* color -- )
+
+	( load ) STH ,&y STR2 ,&x STR2 .line/y STZ2 .line/x STZ2
+	,&x LDR2 .line/x LDZ2 SUB2 ;abs2 JSR2 .line/dx STZ2
+	#0000 ,&y LDR2 .line/y LDZ2 SUB2 ;abs2 JSR2 SUB2 .line/dy STZ2
+	#ffff #00 .line/x LDZ2 ,&x LDR2 ;lts2 JSR2 DUP2 ADD2 ADD2 ,&sx STR2
+	#ffff #00 .line/y LDZ2 ,&y LDR2 ;lts2 JSR2 DUP2 ADD2 ADD2 ,&sy STR2
+	.line/dx LDZ2 .line/dy LDZ2 ADD2 .line/e1 STZ2
+	&loop
+		.line/x LDZ2 DUP2 .Screen/x DEO2 [ LIT2 &x $2 ] EQU2
+		.line/y LDZ2 DUP2 .Screen/y DEO2 [ LIT2 &y $2 ] EQU2
+			STHkr .Screen/pixel DEO
+			AND ,&end JCN
+		.line/e1 LDZ2 DUP2 ADD2 DUP2
+		.line/dy LDZ2 ;lts2 JSR2 ,&skipy JCN
+			.line/e1 LDZ2 .line/dy LDZ2 ADD2 .line/e1 STZ2
+			.line/x LDZ2 [ LIT2 &sx $2 ] ADD2 .line/x STZ2
+		&skipy
+		.line/dx LDZ2 ;gts2 JSR2 ,&skipx JCN
+			.line/e1 LDZ2 .line/dx LDZ2 ADD2 .line/e1 STZ2
+			.line/y LDZ2 [ LIT2 &sy $2 ] ADD2 .line/y STZ2
+		&skipx
+		,&loop JMP
+	&end
+	POPr
+
+JMP2r
+
+@abs2 DUP2 #0f SFT2 EQU #05 JCN #0000 SWP2 SUB2 JMP2r
+@lts2 #8000 STH2k ADD2 SWP2 STH2r ADD2 GTH2 JMP2r
+@gts2 #8000 STH2k ADD2 SWP2 STH2r ADD2 LTH2 JMP2r
+
+@shoot
+	LIT "b .Console/write DEO
+	.player/r LDZ2 ;ray-tile JSR2 ,&tile-addr STR2
+	ROT ROT #0030 #10 SFT2 GTH2 ,&end JCN
+
+	DUP #11 EQU ,&z-hit JCN
+	DUP #12 EQU ,&o-hit JCN
+	,&end JMP
+
+	&z-hit
+		LIT "z .Console/write DEO
+		#11 .counter LDZ ;sequence ADD LDZ 
+		.counter LDZ INC .counter STZ ,&erase-wall JMP
+
+	&o-hit
+		LIT "o .Console/write DEO
+		#12 .counter LDZ ;sequence ADD LDZ 
+		.counter LDZ INC .counter STZ
+
+	&erase-wall
+		#00 [ LIT2 &tile-addr $2 ] STA
+
+	&end		
+		POP2 POP
+
+JMP2r
+
+@player-icn
+	0010 387c 3810 0000
+
+@world
+01 01 01 01 01 01 01 02 01 01 01 01 01 01 01 01
+01 00 00 00 00 00 00 00 00 00 00 00 01 00 00 01
+01 00 11 00 00 00 00 00 00 00 00 00 01 00 00 01
+01 00 00 00 00 00 00 00 00 01 01 01 01 00 00 01
+01 00 00 00 01 00 00 00 00 01 00 00 01 00 00 01
+01 00 00 00 01 00 00 00 00 01 00 00 01 00 00 01
+01 00 00 00 01 00 00 00 00 00 00 00 01 00 00 01
+01 00 00 00 01 00 00 00 00 00 00 00 01 00 00 01
+01 00 01 01 01 01 01 01 01 00 00 00 01 00 00 01
+01 00 00 00 00 00 00 00 01 00 00 00 01 00 00 01
+01 00 00 00 00 00 00 00 01 00 00 00 01 00 00 01
+01 00 00 00 00 00 00 00 01 00 00 00 01 00 00 01
+01 00 00 00 00 00 00 00 01 00 00 00 01 00 00 01
+01 00 00 00 00 00 00 00 01 00 00 00 00 00 00 01
+01 00 00 00 00 00 00 00 01 00 00 00 00 00 00 01
+01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01
+
+
+
+@sin60
+	8000 8000 8100 8200 8300 8300 8400 8500 
+8600 8700 8700 8800 8900 8a00 8a00 8b00 
+8c00 8d00 8e00 8e00 8f00 9001 9101 9201 
+9201 9301 9401 9501 9501 9602 9702 9802 
+9802 9902 9a02 9b02 9c03 9c03 9d03 9e03 
+9f03 9f04 a004 a104 a204 a204 a305 a405 
+a505 a505 a605 a706 a806 a806 a906 aa07 
+ab07 ab07 ac08 ad08 ae08 ae08 af09 b009 
+b009 b10a b20a b30a b30a b40b b50b b60b 
+b60c b70c b80c b80d b90d ba0e ba0e bb0e 
+bc0f bd0f bd0f be10 bf10 bf11 c011 c111 
+c112 c212 c313 c313 c413 c514 c514 c615 
+c715 c716 c816 c916 c917 ca17 ca18 cb18 
+cc19 cc19 cd1a ce1a ce1b cf1b cf1c d01c 
+d11d d11d d21e d31e d31f d41f d420 d520 
+d521 d621 d722 d722 d823 d823 d924 d924 
+da25 db26 db26 dc27 dc27 dd28 dd28 de29 
+de2a df2a df2b e02b e02c e12c e12d e22e 
+e22e e32f e330 e430 e431 e531 e532 e633 
+e633 e734 e735 e835 e836 e936 e937 e938 
+ea38 ea39 eb3a eb3a ec3b ec3c ec3c ed3d 
+ed3e ee3e ee3f ee40 ef40 ef41 f042 f042 
+f043 f144 f145 f145 f246 f247 f347 f348 
+f349 f449 f44a f44b f54c f54c f54d f54e 
+f64f f64f f650 f751 f751 f752 f753 f854 
+f854 f855 f956 f957 f957 f958 fa59 fa5a 
+fa5a fa5b fa5c fb5d fb5d fb5e fb5f fb60 
+fc60 fc61 fc62 fc63 fc63 fd64 fd65 fd66 
+fd67 fd67 fd68 fd69 fe6a fe6a fe6b fe6c 
+fe6d fe6d fe6e fe6f ff70 ff71 ff71 ff72 
+ff73 ff74 ff75 ff75 ff76 ff77 ff78 ff78 
+ff79 ff7a ff7b ff7c ff7c ff7d ff7e ff7f 
+ff80 ff80 ff81 ff82 ff83 ff83 ff84 ff85 
+ff86 ff87 ff87 ff88 ff89 ff8a ff8a ff8b 
+ff8c ff8d ff8e ff8e ff8f fe90 fe91 fe92 
+fe92 fe93 fe94 fe95 fe95 fd96 fd97 fd98 
+fd98 fd99 fd9a fd9b fc9c fc9c fc9d fc9e 
+fc9f fb9f fba0 fba1 fba2 fba2 faa3 faa4 
+faa5 faa5 faa6 f9a7 f9a8 f9a8 f9a9 f8aa 
+f8ab f8ab f7ac f7ad f7ae f7ae f6af f6b0 
+f6b0 f5b1 f5b2 f5b3 f5b3 f4b4 f4b5 f4b6 
+f3b6 f3b7 f3b8 f2b8 f2b9 f1ba f1ba f1bb 
+f0bc f0bd f0bd efbe efbf eebf eec0 eec1 
+edc1 edc2 ecc3 ecc3 ecc4 ebc5 ebc5 eac6 
+eac7 e9c7 e9c8 e9c9 e8c9 e8ca e7ca e7cb 
+e6cc e6cc e5cd e5ce e4ce e4cf e3cf e3d0 
+e2d1 e2d1 e1d2 e1d3 e0d3 e0d4 dfd4 dfd5 
+ded5 ded6 ddd7 ddd7 dcd8 dcd8 dbd9 dbd9 
+dada d9db d9db d8dc d8dc d7dd d7dd d6de 
+d5de d5df d4df d4e0 d3e0 d3e1 d2e1 d1e2 
+d1e2 d0e3 cfe3 cfe4 cee4 cee5 cde5 cce6 
+cce6 cbe7 cae7 cae8 c9e8 c9e9 c8e9 c7e9 
+c7ea c6ea c5eb c5eb c4ec c3ec c3ec c2ed 
+c1ed c1ee c0ee bfee bfef beef bdf0 bdf0 
+bcf0 bbf1 baf1 baf1 b9f2 b8f2 b8f3 b7f3 
+b6f3 b6f4 b5f4 b4f4 b3f5 b3f5 b2f5 b1f5 
+b0f6 b0f6 aff6 aef7 aef7 adf7 acf7 abf8 
+abf8 aaf8 a9f9 a8f9 a8f9 a7f9 a6fa a5fa 
+a5fa a4fa a3fa a2fb a2fb a1fb a0fb 9ffb 
+9ffc 9efc 9dfc 9cfc 9cfc 9bfd 9afd 99fd 
+98fd 98fd 97fd 96fd 95fe 95fe 94fe 93fe 
+92fe 92fe 91fe 90fe 8fff 8eff 8eff 8dff 
+8cff 8bff 8aff 8aff 89ff 88ff 87ff 87ff 
+86ff 85ff 84ff 83ff 83ff 82ff 81ff 80ff 
+80ff 7fff 7eff 7dff 7cff 7cff 7bff 7aff 
+79ff 78ff 78ff 77ff 76ff 75ff 75ff 74ff 
+73ff 72ff 71ff 71ff 70ff 6ffe 6efe 6dfe 
+6dfe 6cfe 6bfe 6afe 6afe 69fd 68fd 67fd 
+67fd 66fd 65fd 64fd 63fc 63fc 62fc 61fc 
+60fc 60fb 5ffb 5efb 5dfb 5dfb 5cfa 5bfa 
+5afa 5afa 59fa 58f9 57f9 57f9 56f9 55f8 
+54f8 54f8 53f7 52f7 51f7 51f7 50f6 4ff6 
+4ff6 4ef5 4df5 4cf5 4cf5 4bf4 4af4 49f4 
+49f3 48f3 47f3 47f2 46f2 45f1 45f1 44f1 
+43f0 42f0 42f0 41ef 40ef 40ee 3fee 3eee 
+3eed 3ded 3cec 3cec 3bec 3aeb 3aeb 39ea 
+38ea 38e9 37e9 36e9 36e8 35e8 35e7 34e7 
+33e6 33e6 32e5 31e5 31e4 30e4 30e3 2fe3 
+2ee2 2ee2 2de1 2ce1 2ce0 2be0 2bdf 2adf 
+2ade 29de 28dd 28dd 27dc 27dc 26db 26db 
+25da 24d9 24d9 23d8 23d8 22d7 22d7 21d6 
+21d5 20d5 20d4 1fd4 1fd3 1ed3 1ed2 1dd1 
+1dd1 1cd0 1ccf 1bcf 1bce 1ace 1acd 19cc 
+19cc 18cb 18ca 17ca 17c9 16c9 16c8 16c7 
+15c7 15c6 14c5 14c5 13c4 13c3 13c3 12c2 
+12c1 11c1 11c0 11bf 10bf 10be 0fbd 0fbd 
+0fbc 0ebb 0eba 0eba 0db9 0db8 0cb8 0cb7 
+0cb6 0bb6 0bb5 0bb4 0ab3 0ab3 0ab2 0ab1 
+09b0 09b0 09af 08ae 08ae 08ad 08ac 07ab 
+07ab 07aa 06a9 06a8 06a8 06a7 05a6 05a5 
+05a5 05a4 05a3 04a2 04a2 04a1 04a0 049f 
+039f 039e 039d 039c 039c 029b 029a 0299 
+0298 0298 0297 0296 0195 0195 0194 0193 
+0192 0192 0191 0190 008f 008e 008e 008d 
+008c 008b 008a 008a 0089 0088 0087 0087 
+0086 0085 0084 0083 0083 0082 0081 0080 
+0080 007f 007e 007d 007c 007c 007b 007a 
+0079 0078 0078 0077 0076 0075 0075 0074 
+0073 0072 0071 0071 0070 016f 016e 016d 
+016d 016c 016b 016a 016a 0269 0268 0267 
+0267 0266 0265 0264 0363 0363 0362 0361 
+0360 0460 045f 045e 045d 045d 055c 055b 
+055a 055a 0559 0658 0657 0657 0656 0755 
+0754 0754 0853 0852 0851 0851 0950 094f 
+094f 0a4e 0a4d 0a4c 0a4c 0b4b 0b4a 0b49 
+0c49 0c48 0c47 0d47 0d46 0e45 0e45 0e44 
+0f43 0f42 0f42 1041 1040 1140 113f 113e 
+123e 123d 133c 133c 133b 143a 143a 1539 
+1538 1638 1637 1636 1736 1735 1835 1834 
+1933 1933 1a32 1a31 1b31 1b30 1c30 1c2f 
+1d2e 1d2e 1e2d 1e2c 1f2c 1f2b 202b 202a 
+212a 2129 2228 2228 2327 2327 2426 2426 
+2525 2624 2624 2723 2723 2822 2822 2921 
+2a21 2a20 2b20 2b1f 2c1f 2c1e 2d1e 2e1d 
+2e1d 2f1c 301c 301b 311b 311a 321a 3319 
+3319 3418 3518 3517 3617 3616 3716 3816 
+3815 3915 3a14 3a14 3b13 3c13 3c13 3d12 
+3e12 3e11 3f11 4011 4010 4110 420f 420f 
+430f 440e 450e 450e 460d 470d 470c 480c 
+490c 490b 4a0b 4b0b 4c0a 4c0a 4d0a 4e0a 
+4f09 4f09 5009 5108 5108 5208 5308 5407 
+5407 5507 5606 5706 5706 5806 5905 5a05 
+5a05 5b05 5c05 5d04 5d04 5e04 5f04 6004 
+6003 6103 6203 6303 6303 6402 6502 6602 
+6702 6702 6802 6902 6a01 6a01 6b01 6c01 
+6d01 6d01 6e01 6f01 7000 7100 7100 7200 
+7300 7400 7500 7500 7600 7700 7800 7800 
+7900 7a00 7b00 7c00 7c00 7d00 7e00 7f00
+
