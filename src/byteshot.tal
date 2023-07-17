@@ -14,6 +14,12 @@
 	@sequence &1 $1 &2 $1 &3 $1 &4 $1 
 	@line &x $2 &y $2 &dx $2 &dy $2 &e1 $2
 
+	@current-level $1
+	@levels &1 $2 &2 $2 &3 $2
+	@level-addr $2
+	@door-codes &1 $1 &2 $1 &3 $1
+	@door-code $1
+
 	@ammo $1
 
 |0100
@@ -22,9 +28,18 @@
     #0f1f .System/g DEO2
     #0f35 .System/b DEO2
 
+	;level1 .levels/1 STZ2
+	;level2 .levels/2 STZ2
+	;level3 .levels/3 STZ2
+
+	;door-code1 LDA .door-codes/1 STZ
+	;door-code2 LDA .door-codes/2 STZ
+	;door-code3 LDA .door-codes/3 STZ
+
+	;initialize-level JSR2
+
 	;on-frame .Screen/vector DEO2
 	;on-button .Controller/vector DEO2
-
 
 	#0040 .player/x STZ2
 	#0010 .player/y STZ2
@@ -32,6 +47,21 @@
 	;update JSR2
 
 BRK
+
+@initialize-level
+
+	#10 DUP DUP DUP
+	.sequence/1 STZ
+	.sequence/2 STZ 
+	.sequence/3 STZ
+	.sequence/4 STZ
+
+	#08 .ammo STZ 
+
+	.current-level LDZ .levels ADD LDZ2 .level-addr STZ2
+	.current-level LDZ .door-codes ADD LDZ .door-code STZ
+
+JMP2r
 
 @on-frame ( -> )
 
@@ -87,6 +117,7 @@ JMP2r
 
 	.Controller/button DEI #01 AND #00 EQU ,&no-a JCN
 		;shoot JSR2
+		;check-code JSR2
 	&no-a
 
 	;update JSR2
@@ -146,7 +177,7 @@ JMP2r
 		#1000
 		&hor
 			( id ) #00 OVR STHkr #40 SFT ADD
-				;world ADD2 LDA .Screen/sprite DEO
+				.level-addr LDZ2 ADD2 LDA .Screen/sprite DEO
 			INC GTHk ,&hor JCN
 		POP2
 		POPr
@@ -233,7 +264,7 @@ JMP2r
 
 	;to-scale JSR2
 	#43 SFT2 SWP2 #03 SFT2 ADD2
-		;world ADD2 DUP2 LDA 
+		.level-addr LDZ2 ADD2 DUP2 LDA 
 
 JMP2r
 
@@ -270,7 +301,6 @@ JMP2r
 @gts2 #8000 STH2k ADD2 SWP2 STH2r ADD2 LTH2 JMP2r
 
 @shoot
-	LIT "b .Console/write DEO
 	.player/r LDZ2 ;ray-tile JSR2 ,&tile-addr STR2
 	ROT ROT #0030 #10 SFT2 GTH2 ,&end JCN
 
@@ -279,27 +309,84 @@ JMP2r
 	,&end JMP
 
 	&z-hit
-		LIT "z .Console/write DEO
-		#11 .counter LDZ ;sequence ADD LDZ 
+		#00 .counter LDZ .sequence ADD STZ 
 		.counter LDZ INC .counter STZ ,&erase-wall JMP
 
 	&o-hit
-		LIT "o .Console/write DEO
-		#12 .counter LDZ ;sequence ADD LDZ 
+		#01 .counter LDZ .sequence ADD STZ 
 		.counter LDZ INC .counter STZ
 
 	&erase-wall
 		#00 [ LIT2 &tile-addr $2 ] STA
 
-	&end		
-		POP2 POP
+	&end
+		POP
 
+JMP2r
+
+@check-code
+
+	LIT "c .Console/write DEO
+	.sequence/1 LDZ #01 MUL
+	.sequence/2 LDZ #02 MUL
+	.sequence/3 LDZ #04 MUL
+	.sequence/4 LDZ #08 MUL
+
+	ADD ADD ADD 
+
+	.door-code LDZ NEQ ,&end JCN
+
+	LIT "s .Console/write DEO
+	#03 .level-addr LDZ2 #0007 ADD2 STA
+
+	&end
 JMP2r
 
 @player-icn
 	0010 387c 3810 0000
 
-@world
+
+@door-code1 02
+@level1
+01 01 01 01 01 01 01 02 01 01 01 01 01 01 01 01
+01 00 00 00 00 00 00 00 00 00 00 00 01 00 00 01
+01 00 11 00 00 00 00 00 00 00 00 00 01 00 00 01
+01 00 00 00 00 00 00 00 00 01 01 01 01 00 00 01
+01 00 00 00 01 00 00 00 00 01 00 00 01 00 00 01
+01 00 12 00 01 00 00 11 00 01 00 00 01 00 00 01
+01 00 00 00 01 00 00 00 00 00 00 00 01 00 00 01
+01 00 00 00 01 00 00 00 00 00 00 00 01 00 00 01
+01 00 01 01 01 01 01 01 01 00 00 00 01 00 00 01
+01 00 00 00 00 00 00 00 01 00 00 00 01 00 00 01
+01 00 00 00 00 00 00 00 01 00 00 00 01 00 00 01
+01 00 00 00 00 00 00 00 01 00 00 00 01 00 00 01
+01 00 00 00 00 00 00 00 01 00 11 00 01 00 00 01
+01 00 00 00 00 00 00 00 01 00 00 00 00 00 00 01
+01 00 00 00 00 00 00 00 01 00 00 00 00 00 00 01
+01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01
+
+
+@door-code2 04
+@level2
+01 01 01 01 01 01 01 02 01 01 01 01 01 01 01 01
+01 00 00 00 00 00 00 00 00 00 00 00 01 00 00 01
+01 00 11 00 00 00 00 00 00 00 00 00 01 00 00 01
+01 00 00 00 00 00 00 00 00 01 01 01 01 00 00 01
+01 00 00 00 01 00 00 00 00 01 00 00 01 00 00 01
+01 00 00 00 01 00 00 00 00 01 00 00 01 00 00 01
+01 00 00 00 01 00 00 00 00 00 00 00 01 00 00 01
+01 00 00 00 01 00 00 00 00 00 00 00 01 00 00 01
+01 00 01 01 01 01 01 01 01 00 00 00 01 00 00 01
+01 00 00 00 00 00 00 00 01 00 00 00 01 00 00 01
+01 00 00 00 00 00 00 00 01 00 00 00 01 00 00 01
+01 00 00 00 00 00 00 00 01 00 00 00 01 00 00 01
+01 00 00 00 00 00 00 00 01 00 00 00 01 00 00 01
+01 00 00 00 00 00 00 00 01 00 00 00 00 00 00 01
+01 00 00 00 00 00 00 00 01 00 00 00 00 00 00 01
+01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01
+
+@door-code3 08
+@level3
 01 01 01 01 01 01 01 02 01 01 01 01 01 01 01 01
 01 00 00 00 00 00 00 00 00 00 00 00 01 00 00 01
 01 00 11 00 00 00 00 00 00 00 00 00 01 00 00 01
