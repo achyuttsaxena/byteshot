@@ -20,7 +20,7 @@
 	@door-codes &1 $1 &2 $1 &3 $1
 	@door-code $1
 
-	@ammo $1
+	@ammo $2
 
 |0100
 
@@ -41,14 +41,14 @@
 	;on-frame .Screen/vector DEO2
 	;on-button .Controller/vector DEO2
 
-	#0040 .player/x STZ2
-	#0010 .player/y STZ2
-
 	;update JSR2
 
 BRK
 
 @initialize-level
+
+	#00c0 .player/x STZ2
+	#00e0 .player/y STZ2
 
 	#10 DUP DUP DUP
 	.sequence/1 STZ
@@ -56,11 +56,10 @@ BRK
 	.sequence/3 STZ
 	.sequence/4 STZ
 
-	#08 .ammo STZ 
+	#0008 .ammo STZ2 
 
-	.current-level LDZ .levels ADD LDZ2 .level-addr STZ2
+	.current-level LDZ #10 SFT .levels ADD LDZ2 .level-addr STZ2
 	.current-level LDZ .door-codes ADD LDZ .door-code STZ
-
 JMP2r
 
 @on-frame ( -> )
@@ -96,9 +95,6 @@ JMP2r
 	DUP #80 AND #00 EQU ,&no-r JCN
 		.player/r LDZ2k #0018 ADD2 #03ff AND2 ROT STZ2
 		&no-r
-	DUP #02 AND #00 EQU ,&no-b JCN
-		.player/r LDZ2k #0018 ADD2 #03ff AND2 ROT STZ2
-		&no-b
 	DUP #00 EQU ,&no-null JCN
 		;update JSR2
 		&no-null
@@ -109,16 +105,26 @@ BRK
 @update ( -- )
 
 	;draw-viewport JSR2
+	;draw-ui JSR2
 	;draw-minimap  JSR2
 
 JMP2r
 
 @on-button ( -> )
 
-	.Controller/button DEI #01 AND #00 EQU ,&no-a JCN
+	.Controller/button DEI 
+	DUP #01 AND #00 EQU ,&no-a JCN
 		;shoot JSR2
 		;check-code JSR2
 	&no-a
+	DUP #02 AND #00 EQU ,&no-b JCN
+		.player/r LDZ2 #0030 ;raycast JSR2
+		OVR2 OVR2 ;get-tile JSR2 NIP NIP
+
+		#03 NEQ ,&no-b JCN
+		;next-level JSR2
+	&no-b
+	POP
 
 	;update JSR2
 
@@ -300,7 +306,80 @@ JMP2r
 @lts2 #8000 STH2k ADD2 SWP2 STH2r ADD2 GTH2 JMP2r
 @gts2 #8000 STH2k ADD2 SWP2 STH2r ADD2 LTH2 JMP2r
 
+@draw-ui
+
+	#0008 #0000	
+	&l0
+		DUP2 #000f MUL2 #0007 ADD2 #011f ;ammo-filled ;clear-box JSR2
+		INC2 OVR2 OVR2 GTH2 ,&l0 JCN
+	POP2 POP2
+
+	#0008 #0000
+	&l1
+		DUP2 #000f MUL2 #0007 ADD2 #011f ;empty-box ;draw-box JSR2
+		INC2 OVR2 OVR2 GTH2 ,&l1 JCN
+	POP2 POP2
+
+	.ammo LDZ2 #0000 EQU2 ,&seq JCN
+	.ammo LDZ2 #0000
+	&l2
+		DUP2 #000f MUL2 #0007 ADD2 #011f ;ammo-filled ;draw-box JSR2
+		INC2 OVR2 OVR2 GTH2 ,&l2 JCN
+	POP2 POP2
+
+	&seq
+
+		#04 #00
+		&l3
+			DUP .sequence ADD LDZ 
+			DUP #00 NEQ ,&no-z JCN
+			POP DUP #00 SWP  #000f MUL2 #0020 ADD2 .Screen/width DEI2 SWP2 SUB2 #011f ;seq-zero ;draw-box JSR2
+			,&e JMP
+			
+			&no-z
+			#01 NEQ ,&no-o JCN
+			DUP #00 SWP #000f MUL2 #0020 ADD2 .Screen/width DEI2 SWP2 SUB2 #011f ;seq-one ;draw-box JSR2
+			,&e JMP
+
+			&no-o
+			DUP #00 SWP #000f MUL2 #0020 ADD2 .Screen/width DEI2 SWP2 SUB2 #011f ;empty-box ;draw-box JSR2
+
+			&e
+			INC OVR OVR GTH ,&l3 JCN
+			POP POP
+
+
+JMP2r
+
+@draw-box ( x y addr --  ) 
+
+	STH2
+	.Screen/y DEO2
+    .Screen/x DEO2
+	STH2r .Screen/addr DEO2
+	#16 .Screen/auto DEO
+
+	#c5 .Screen/sprite DEOk DEO
+
+JMP2r
+
+@clear-box ( x y addr --  ) 
+
+	STH2
+	.Screen/y DEO2
+    .Screen/x DEO2
+	STH2r .Screen/addr DEO2
+	#16 .Screen/auto DEO
+
+	#40 .Screen/sprite DEOk DEO
+
+JMP2r
+
 @shoot
+
+	.ammo LDZ2 #0000 EQU2 ,&enda JCN
+
+	.ammo LDZ2 #0001 SUB2 .ammo STZ2
 	.player/r LDZ2 ;ray-tile JSR2 ,&tile-addr STR2
 	ROT ROT #0030 #10 SFT2 GTH2 ,&end JCN
 
@@ -309,11 +388,11 @@ JMP2r
 	,&end JMP
 
 	&z-hit
-		#00 .counter LDZ .sequence ADD STZ 
+		#00 .counter LDZ .sequence ADD STZ
 		.counter LDZ INC .counter STZ ,&erase-wall JMP
 
 	&o-hit
-		#01 .counter LDZ .sequence ADD STZ 
+		#01 .counter LDZ .sequence ADD STZ
 		.counter LDZ INC .counter STZ
 
 	&erase-wall
@@ -321,12 +400,11 @@ JMP2r
 
 	&end
 		POP
-
+	&enda
 JMP2r
 
 @check-code
 
-	LIT "c .Console/write DEO
 	.sequence/1 LDZ #01 MUL
 	.sequence/2 LDZ #02 MUL
 	.sequence/3 LDZ #04 MUL
@@ -336,11 +414,17 @@ JMP2r
 
 	.door-code LDZ NEQ ,&end JCN
 
-	LIT "s .Console/write DEO
 	#03 .level-addr LDZ2 #0007 ADD2 STA
 
 	&end
 JMP2r
+
+@next-level
+	.current-level LDZ INC .current-level STZ
+	;initialize-level JSR2
+
+JMP2r
+
 
 @player-icn
 	0010 387c 3810 0000
@@ -370,13 +454,13 @@ JMP2r
 @level2
 01 01 01 01 01 01 01 02 01 01 01 01 01 01 01 01
 01 00 00 00 00 00 00 00 00 00 00 00 01 00 00 01
-01 00 11 00 00 00 00 00 00 00 00 00 01 00 00 01
+01 00 00 00 00 00 00 00 00 00 00 00 01 00 00 01
 01 00 00 00 00 00 00 00 00 01 01 01 01 00 00 01
-01 00 00 00 01 00 00 00 00 01 00 00 01 00 00 01
-01 00 00 00 01 00 00 00 00 01 00 00 01 00 00 01
-01 00 00 00 01 00 00 00 00 00 00 00 01 00 00 01
-01 00 00 00 01 00 00 00 00 00 00 00 01 00 00 01
-01 00 01 01 01 01 01 01 01 00 00 00 01 00 00 01
+01 00 00 00 00 00 00 00 00 01 00 00 01 00 00 01
+01 00 00 00 00 00 00 00 00 01 00 00 01 00 00 01
+01 00 00 00 00 00 00 00 00 00 00 00 01 00 00 01
+01 00 00 00 00 00 00 00 00 00 00 00 01 00 00 01
+01 01 01 01 00 01 01 01 01 00 00 00 01 00 00 01
 01 00 00 00 00 00 00 00 01 00 00 00 01 00 00 01
 01 00 00 00 00 00 00 00 01 00 00 00 01 00 00 01
 01 00 00 00 00 00 00 00 01 00 00 00 01 00 00 01
@@ -404,7 +488,29 @@ JMP2r
 01 00 00 00 00 00 00 00 01 00 00 00 00 00 00 01
 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01
 
+@empty-box
+&tile0 [ ff 80 80 80 80 80 80 80 00 00 00 00 00 00 00 00 ]
+ &tile1 [ ff 01 01 01 01 01 01 01 00 00 00 00 00 00 00 00 ]
+ &tile2 [ 80 80 80 80 80 80 80 ff 00 00 00 00 00 00 00 00 ]
+ &tile3 [ 01 01 01 01 01 01 01 ff 00 00 00 00 00 00 00 00 ]
 
+@ammo-filled
+&tile0 [ ff80 8080 8083 8787 0000 0000 0000 0000 ]
+ &tile1 [ ff01 0101 01c1 e1e1 0000 0000 0000 0000 ]
+ &tile2 [ 8787 8380 8080 80ff 0000 0000 0000 0000 ]
+ &tile3 [ e1e1 c101 0101 01ff 0000 0000 0000 0000 ]
+
+@seq-zero
+&tile0 [ ff80 8387 8898 9898 0000 0000 0000 0000 ]
+ &tile1 [ ff01 c1e1 1119 1919 0000 0000 0000 0000 ]
+ &tile2 [ 9898 9888 8783 80ff 0000 0000 0000 0000 ]
+ &tile3 [ 1919 1911 e1c1 01ff 0000 0000 0000 0000 ]
+
+@seq-one
+&tile0 [ ff80 8080 8387 8181 0000 0000 0000 0000 ]
+ &tile1 [ ff01 0101 8181 8181 0000 0000 0000 0000 ]
+ &tile2 [ 8181 8181 8f8f 80ff 0000 0000 0000 0000 ]
+ &tile3 [ 8181 8181 f1f1 01ff 0000 0000 0000 0000 ]
 
 @sin60
 	8000 8000 8100 8200 8300 8300 8400 8500 
@@ -535,4 +641,3 @@ a5fa a4fa a3fa a2fb a2fb a1fb a0fb 9ffb
 6d01 6d01 6e01 6f01 7000 7100 7100 7200 
 7300 7400 7500 7500 7600 7700 7800 7800 
 7900 7a00 7b00 7c00 7c00 7d00 7e00 7f00
-
