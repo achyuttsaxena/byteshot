@@ -28,6 +28,11 @@
     #0f1f .System/g DEO2
     #0f35 .System/b DEO2
 
+	#0120 .Screen/width DEO2
+	#00b4 .Screen/height DEO2
+
+	( center of view port - #0090 , #0040 )
+
 	;level1 .levels/1 STZ2
 	;level2 .levels/2 STZ2
 	;level3 .levels/3 STZ2
@@ -64,7 +69,7 @@ JMP2r
 
 @on-frame ( -> )
 
-	[ LIT &rate $1 ] INC DUP #02 EQU ,&go JCN
+	[ LIT &rate $1 ] INC DUP #01 EQU ,&go JCN
 		,&rate STR BRK &go
 	POP #00 ,&rate STR
 
@@ -103,10 +108,10 @@ JMP2r
 BRK
 
 @update ( -- )
-
+	#00 .Screen/auto DEO
 	;draw-viewport JSR2
 	;draw-ui JSR2
-	;draw-minimap  JSR2
+	( ;draw-minimap  JSR2 )
 
 JMP2r
 
@@ -131,15 +136,28 @@ JMP2r
 BRK
 
 @draw-viewport ( -- )
-
 	#00 .Screen/auto DEO
 	#0100 #0000
 	&h
-		DUP2 #0090 ADD2 .Screen/x DEO2
+		DUP2 #0010 ADD2 .Screen/x DEO2
 		DUP2 .player/r LDZ2 ( eye ) #0080 SUB2 ADD2 #03ff AND2
 			;ray-tile JSR2 POP2
-			;draw-col JSR2
-		INC2 GTH2k ,&h JCN
+			,&color STR 
+			,&distance STR2
+
+		DUP2 .player/r LDZ2 ( eye ) #0080 SUB2 ADD2 #03ff AND2
+			;ray-tile-s JSR2 POP2
+			,&color-s STR 
+			,&distance-s STR2
+
+			[ LIT2 &distance $2 ] [ LIT &color $1 ] ;draw-col JSR2
+			
+			,&distance-s LDR2 ,&distance LDR2 GTH2 ,&no-sprite JCN
+
+			[ LIT2 &distance-s $2 ] [ LIT &color-s $1 ] ;draw-enemy JSR2
+
+		&no-sprite
+			INC2 GTH2k ,&h JCN
 	POP2 POP2
 
 JMP2r
@@ -159,7 +177,6 @@ JMP2r
 
 JMP2r
 
-
 @get-color ( y distance color -- color )
 
 	ROT ROT
@@ -170,6 +187,25 @@ JMP2r
 	&bottom
 		#00 SWP SUB #01 SFT LTH MUL
 	JMP2r
+
+@draw-enemy ( distance color --  )
+
+	ROT ROT POP2 
+
+	DUP #10 EQU ,&zero-s JCN
+	DUP #20 EQU ,&one-s JCN
+	
+	&zero-s
+
+	,&end JMP
+	&one-s
+	#0040 .Screen/y DEO2
+
+	#43 .Screen/pixel DEO
+
+	&end
+	POP
+JMP2r
 
 @draw-minimap ( -- )
 
@@ -241,13 +277,30 @@ JMP2r
 @ray-tile ( angle* -- distance* color tile-address )
 
 	,&angle STR2
-	#0100 #0002
+	#0100 #0000
 	&r
 		DUP2 ,&distance STR2
 		[ LIT2 &angle $2 ] OVR2 ;raycast JSR2
 			;get-tile JSR2
 			DUP ,&color STR ROT ROT ,&tile-addr STR2
-			,&end JCN
+			#03 AND ,&end JCN
+		INC2 GTH2k ,&r JCN
+	&end
+	POP2 POP2
+	( res ) [ LIT2 &distance $2 ] [ LIT &color $1 ] [ LIT2 &tile-addr $2 ]
+
+JMP2r
+
+@ray-tile-s ( angle* -- distance* color tile-address )
+
+	,&angle STR2
+	#0100 #0000
+	&r
+		DUP2 ,&distance STR2
+		[ LIT2 &angle $2 ] OVR2 ;raycast JSR2
+			;get-tile JSR2
+			DUP ,&color STR ROT ROT ,&tile-addr STR2
+			#30 AND ,&end JCN
 		INC2 GTH2k ,&r JCN
 	&end
 	POP2 POP2
@@ -310,39 +363,45 @@ JMP2r
 
 	#0008 #0000	
 	&l0
-		DUP2 #000f MUL2 #0007 ADD2 #011f ;ammo-filled ;clear-box JSR2
+		DUP2 #000f MUL2 #0010 ADD2 #00a0 ;clear-box JSR2
 		INC2 OVR2 OVR2 GTH2 ,&l0 JCN
 	POP2 POP2
 
 	#0008 #0000
 	&l1
-		DUP2 #000f MUL2 #0007 ADD2 #011f ;empty-box ;draw-box JSR2
+		DUP2 #000f MUL2 #0010 ADD2 #00a0 ;empty-box ;draw-box JSR2
 		INC2 OVR2 OVR2 GTH2 ,&l1 JCN
 	POP2 POP2
 
 	.ammo LDZ2 #0000 EQU2 ,&seq JCN
 	.ammo LDZ2 #0000
 	&l2
-		DUP2 #000f MUL2 #0007 ADD2 #011f ;ammo-filled ;draw-box JSR2
+		DUP2 #000f MUL2 #0010 ADD2 #00a0 ;ammo-filled ;draw-box JSR2
 		INC2 OVR2 OVR2 GTH2 ,&l2 JCN
 	POP2 POP2
 
 	&seq
 
 		#04 #00
+		&l4
+			DUP #00 SWP  #000f MUL2 #0020 ADD2 .Screen/width DEI2 SWP2 SUB2 #00a0 ;clear-box JSR2
+			INC OVR OVR GTH ,&l4 JCN
+			POP POP
+
+		#04 #00
 		&l3
 			DUP .sequence ADD LDZ 
 			DUP #00 NEQ ,&no-z JCN
-			POP DUP #00 SWP  #000f MUL2 #0020 ADD2 .Screen/width DEI2 SWP2 SUB2 #011f ;seq-zero ;draw-box JSR2
+			POP DUP #00 SWP  #000f MUL2 #0020 ADD2 .Screen/width DEI2 SWP2 SUB2 #00a0 ;seq-zero ;draw-box JSR2
 			,&e JMP
 			
 			&no-z
 			#01 NEQ ,&no-o JCN
-			DUP #00 SWP #000f MUL2 #0020 ADD2 .Screen/width DEI2 SWP2 SUB2 #011f ;seq-one ;draw-box JSR2
+			DUP #00 SWP #000f MUL2 #0020 ADD2 .Screen/width DEI2 SWP2 SUB2 #00a0 ;seq-one ;draw-box JSR2
 			,&e JMP
 
 			&no-o
-			DUP #00 SWP #000f MUL2 #0020 ADD2 .Screen/width DEI2 SWP2 SUB2 #011f ;empty-box ;draw-box JSR2
+			DUP #00 SWP #000f MUL2 #0020 ADD2 .Screen/width DEI2 SWP2 SUB2 #00a0 ;empty-box ;draw-box JSR2
 
 			&e
 			INC OVR OVR GTH ,&l3 JCN
@@ -363,15 +422,21 @@ JMP2r
 
 JMP2r
 
-@clear-box ( x y addr --  ) 
+@clear-box ( x y --  ) 
 
-	STH2
 	.Screen/y DEO2
     .Screen/x DEO2
-	STH2r .Screen/addr DEO2
+	;eraser-box .Screen/addr DEO2
 	#16 .Screen/auto DEO
 
 	#40 .Screen/sprite DEOk DEO
+
+JMP2r
+
+@draw-bullet
+
+
+
 
 JMP2r
 
@@ -380,11 +445,11 @@ JMP2r
 	.ammo LDZ2 #0000 EQU2 ,&enda JCN
 
 	.ammo LDZ2 #0001 SUB2 .ammo STZ2
-	.player/r LDZ2 ;ray-tile JSR2 ,&tile-addr STR2
+	.player/r LDZ2 ;ray-tile-s JSR2 ,&tile-addr STR2
 	ROT ROT #0030 #10 SFT2 GTH2 ,&end JCN
 
-	DUP #11 EQU ,&z-hit JCN
-	DUP #12 EQU ,&o-hit JCN
+	DUP #10 EQU ,&z-hit JCN
+	DUP #20 EQU ,&o-hit JCN
 	,&end JMP
 
 	&z-hit
@@ -434,17 +499,17 @@ JMP2r
 @level1
 01 01 01 01 01 01 01 02 01 01 01 01 01 01 01 01
 01 00 00 00 00 00 00 00 00 00 00 00 01 00 00 01
-01 00 11 00 00 00 00 00 00 00 00 00 01 00 00 01
+01 00 10 00 00 00 00 00 00 00 00 00 01 00 00 01
 01 00 00 00 00 00 00 00 00 01 01 01 01 00 00 01
 01 00 00 00 01 00 00 00 00 01 00 00 01 00 00 01
-01 00 12 00 01 00 00 11 00 01 00 00 01 00 00 01
+01 00 20 00 01 00 00 10 00 01 00 00 01 00 00 01
 01 00 00 00 01 00 00 00 00 00 00 00 01 00 00 01
 01 00 00 00 01 00 00 00 00 00 00 00 01 00 00 01
 01 00 01 01 01 01 01 01 01 00 00 00 01 00 00 01
 01 00 00 00 00 00 00 00 01 00 00 00 01 00 00 01
 01 00 00 00 00 00 00 00 01 00 00 00 01 00 00 01
 01 00 00 00 00 00 00 00 01 00 00 00 01 00 00 01
-01 00 00 00 00 00 00 00 01 00 11 00 01 00 00 01
+01 00 00 00 00 00 00 00 01 00 10 00 01 00 00 01
 01 00 00 00 00 00 00 00 01 00 00 00 00 00 00 01
 01 00 00 00 00 00 00 00 01 00 00 00 00 00 00 01
 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01
@@ -488,6 +553,24 @@ JMP2r
 01 00 00 00 00 00 00 00 01 00 00 00 00 00 00 01
 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01
 
+@e-zero-0
+&tile0 [ 0000 0304 0808 0818  0000 0000 0000 0000 ]
+ &tile1 [ 0000 e010 0808 080c  0000 0000 0000 0000 ]
+ &tile2 [ 2828 0804 0302 0202  0000 0000 0000 0000 ]
+ &tile3 [ 0a0a 0810 e040 4040  0000 0000 0000 0000 ]
+
+ @e-one-0
+&tile0 [ 0003 0707 0101 0305  0000 0000 0000 0000 ]
+ &tile1 [ 0080 8080 8080 c0a0  0000 0000 0000 0000 ]
+ &tile2 [ 0501 010f 0f04 0404  0000 0000 0000 0000 ]
+ &tile3 [ a080 80f0 f020 2020  0000 0000 0000 0000 ]
+
+@eraser-box
+&tile0 [ ffff ffff ffff ffff  0000 0000 0000 0000 ]
+ &tile1 [ ffff ffff ffff ffff  0000 0000 0000 0000 ]
+ &tile2 [ ffff ffff ffff ffff  0000 0000 0000 0000 ]
+ &tile3 [ ffff ffff ffff ffff  0000 0000 0000 0000 ]
+
 @empty-box
 &tile0 [ ff 80 80 80 80 80 80 80 00 00 00 00 00 00 00 00 ]
  &tile1 [ ff 01 01 01 01 01 01 01 00 00 00 00 00 00 00 00 ]
@@ -507,10 +590,29 @@ JMP2r
  &tile3 [ 1919 1911 e1c1 01ff 0000 0000 0000 0000 ]
 
 @seq-one
-&tile0 [ ff80 8080 8387 8181 0000 0000 0000 0000 ]
- &tile1 [ ff01 0101 8181 8181 0000 0000 0000 0000 ]
+&tile0 [ ff01 8387 8781 8181 0000 0000 0000 0000 ]
+ &tile1 [ ff01 8181 8181 8181 0000 0000 0000 0000 ]
  &tile2 [ 8181 8181 8f8f 80ff 0000 0000 0000 0000 ]
  &tile3 [ 8181 8181 f1f1 01ff 0000 0000 0000 0000 ]
+
+@bullet0
+&tile0 [ 0103 060c 1830 63c3 0000 0103 070f 1c3c ]
+ &tile1 [ 80c0 6030 180c 0603 0000 80c0 e0f0 f8fc ]
+ &tile2 [ c060 3018 0c06 0301 3f1f 0f07 0301 0000 ]
+ &tile3 [ c3c6 0c18 3060 c080 3c38 f0e0 c080 0000 ]
+
+ @bullet1
+&tile0 [ 0000 0103 060c 1831 0000 0000 0103 070e ]
+ &tile1 [ 0000 80c0 6030 180c 0000 0000 80ce e0f0 ]
+ &tile2 [ 3018 0c06 0301 0000 0f07 0301 0000 0000 ]
+ &tile3 [ 8c18 3060 c080 0000 70e0 c080 0000 0000 ]
+
+ @bullet2
+&tile0 [ 0000 0000 0102 0409 0000 0000 0001 0306 ]
+ &tile1 [ 0000 0000 8040 2010 0000 0000 0080 c0e0 ]
+ &tile2 [ 0804 0201 0000 0000 0703 0100 0000 0000 ]
+ &tile3 [ 9020 4080 0000 0000 60c0 8000 0000 0000 ]
+
 
 @sin60
 	8000 8000 8100 8200 8300 8300 8400 8500 
