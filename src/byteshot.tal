@@ -7,6 +7,9 @@
 |60 @Audio3     &vector $2 &position $2 &output $1 &pad    $3 &adsr   $2 &length  $2 &addr    $2 &volume $1 &pitch $1
 |80 @Controller &vector $2 &button   $1 &key    $1 &func   $1
 
+
+%3MOD { #03 AND }
+
 |0000
 
 	@player &x $2 &y $2 &r $2
@@ -22,6 +25,8 @@
 
 	@ammo $2
 
+	@shoot-frame $1
+
 |0100
 
 	#0ff2 .System/r DEO2
@@ -31,7 +36,7 @@
 	#0120 .Screen/width DEO2
 	#00b4 .Screen/height DEO2
 
-	( center of view port - #0090 , #0040 )
+	( center of view port - #0090 , #0040 ) ( #0081 #0031 )
 
 	;level1 .levels/1 STZ2
 	;level2 .levels/2 STZ2
@@ -63,15 +68,13 @@ BRK
 
 	#0008 .ammo STZ2 
 
+	#10 .shoot-frame STZ 
+
 	.current-level LDZ #10 SFT .levels ADD LDZ2 .level-addr STZ2
 	.current-level LDZ .door-codes ADD LDZ .door-code STZ
 JMP2r
 
 @on-frame ( -> )
-
-	[ LIT &rate $1 ] INC DUP #01 EQU ,&go JCN
-		,&rate STR BRK &go
-	POP #00 ,&rate STR
 
 	.Controller/button DEI
 	DUP #10 AND #00 EQU ,&no-u JCN
@@ -104,6 +107,16 @@ JMP2r
 		;update JSR2
 		&no-null
 	POP
+
+	[ LIT &rate $1 ] INC DUP #02 EQU ,&go JCN
+		,&rate STR BRK &go
+	POP #00 ,&rate STR
+
+	.shoot-frame LDZ #10 EQU ,&end JCN
+
+	;draw-bullet JSR2
+
+	&end
 
 BRK
 
@@ -435,8 +448,35 @@ JMP2r
 
 @draw-bullet
 
+	.shoot-frame LDZ INC .shoot-frame STZ
+	  
+	  #0081 #0040 ;clear-box JSR2
 
+      .shoot-frame LDZ
+      3MOD 
 
+	  DUP #00 NEQ ,&no-f JCN
+	  #0081 #0040 ;bullet0 ;draw-box JSR2
+	  ,&end-a JMP
+	  
+	  &no-f
+	  DUP #01 NEQ ,&no-s JCN
+	  #0081 #0040 ;bullet1 ;draw-box JSR2
+	  ,&end-a JMP
+
+	  &no-s
+	  DUP #02 NEQ ,&no-t JCN
+	  #0081 #0040 ;bullet2 ;draw-box JSR2
+	  ,&end-a JMP
+
+	  &no-t
+	  #0081 #0040 ;bullet3 ;draw-box JSR2
+	  #10 .shoot-frame STZ
+
+	  #0081 #0040 ;clear-box JSR2
+
+	  &end-a
+	  POP
 
 JMP2r
 
@@ -444,6 +484,7 @@ JMP2r
 
 	.ammo LDZ2 #0000 EQU2 ,&enda JCN
 
+	#00 .shoot-frame STZ
 	.ammo LDZ2 #0001 SUB2 .ammo STZ2
 	.player/r LDZ2 ;ray-tile-s JSR2 ,&tile-addr STR2
 	ROT ROT #0030 #10 SFT2 GTH2 ,&end JCN
@@ -612,6 +653,12 @@ JMP2r
  &tile1 [ 0000 0000 8040 2010 0000 0000 0080 c0e0 ]
  &tile2 [ 0804 0201 0000 0000 0703 0100 0000 0000 ]
  &tile3 [ 9020 4080 0000 0000 60c0 8000 0000 0000 ]
+
+@bullet3
+&tile0 [ 0000 0000 0000 0001 0000 0000 0000 0000 ]
+ &tile1 [ 0000 0000 0000 0000 0000 0000 0000 0080 ]
+ &tile2 [ 0000 0000 0000 0000 0100 0000 0000 0000 ]
+ &tile3 [ 8000 0000 0000 0000 0000 0000 0000 0000 ]
 
 
 @sin60
