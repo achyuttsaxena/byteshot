@@ -450,30 +450,30 @@ JMP2r
 
 	.shoot-frame LDZ INC .shoot-frame STZ
 	  
-	  #0081 #0040 ;clear-box JSR2
+	  #0081 #0031 ;clear-box JSR2
 
       .shoot-frame LDZ
       3MOD 
 
 	  DUP #00 NEQ ,&no-f JCN
-	  #0081 #0040 ;bullet0 ;draw-box JSR2
+	  #0081 #0031 ;bullet0 ;draw-box JSR2
 	  ,&end-a JMP
 	  
 	  &no-f
 	  DUP #01 NEQ ,&no-s JCN
-	  #0081 #0040 ;bullet1 ;draw-box JSR2
+	  #0081 #0031 ;bullet1 ;draw-box JSR2
 	  ,&end-a JMP
 
 	  &no-s
 	  DUP #02 NEQ ,&no-t JCN
-	  #0081 #0040 ;bullet2 ;draw-box JSR2
+	  #0081 #0031 ;bullet2 ;draw-box JSR2
 	  ,&end-a JMP
 
 	  &no-t
-	  #0081 #0040 ;bullet3 ;draw-box JSR2
+	  #0081 #0031 ;bullet3 ;draw-box JSR2
 	  #10 .shoot-frame STZ
 
-	  #0081 #0040 ;clear-box JSR2
+	  #0081 #0031 ;clear-box JSR2
 
 	  &end-a
 	  POP
