@@ -124,9 +124,9 @@ BRK
 
 @update ( -- )
 	#00 .Screen/auto DEO
+	;clear-viewport JSR2
 	;draw-viewport JSR2
 	;draw-ui JSR2
-	( ;draw-minimap  JSR2 )
 
 JMP2r
 
@@ -154,6 +154,7 @@ BRK
 	#00 .Screen/auto DEO
 	#0100 #0000
 	&h
+
 		DUP2 #0010 ADD2 .Screen/x DEO2
 		DUP2 .player/r LDZ2 ( eye ) #0080 SUB2 ADD2 #03ff AND2
 			;ray-tile JSR2 POP2
@@ -204,96 +205,33 @@ JMP2r
 	JMP2r
 
 @draw-enemy ( distance color --  )
-
-	.Screen/x DEI2 ,&x STR2 
-
-	;clear-viewport JSR2
-
-	[ LIT2 &x $2 ] .Screen/x DEO2
 	ROT ROT POP2 
 
 	DUP #10 EQU ,&zero-s JCN
 	DUP #20 EQU ,&one-s JCN
+	,&end JMP
 	
 	&zero-s
 	#0040 .Screen/y DEO2
 	( .Screen/x DEI2 .Screen/y DEI2 ;e-zero-0 ;draw-box JSR2 )
 
-	#0088 #00a0 ;e-zero-0 ;draw-box JSR2
+	#42 .Screen/pixel DEO
 
 	,&end JMP
 	&one-s
 	#0040 .Screen/y DEO2
-	#0097 #00a0 ;e-one-0 ;draw-box JSR2
+	( .Screen/x DEI2 .Screen/y DEI2 ;e-one-0 ;draw-box JSR2 )
+
+	#43 .Screen/pixel DEO
 
 	&end
 	POP
 JMP2r
 
-@draw-minimap ( -- )
-
-	#01 .Screen/auto DEO
-	;fill-icn .Screen/addr DEO2
-	#0000 .Screen/y DEO2
-	#1000
-	&ver
-		STHk
-		#0000 .Screen/x DEO2
-		#1000
-		&hor
-			( id ) #00 OVR STHkr #40 SFT ADD
-				.level-addr LDZ2 ADD2 LDA .Screen/sprite DEO
-			INC GTHk ,&hor JCN
-		POP2
-		POPr
-		.Screen/y DEI2k #0008 ADD2 ROT DEO2
-		INC GTHk ,&ver JCN
-	POP2
-
-	( draw player )
-
-	.player/x LDZ2 ( scale ) #01 SFT2 #0003 SUB2 .Screen/x DEO2
-	.player/y LDZ2 ( scale ) #01 SFT2 #0003 SUB2 .Screen/y DEO2
-	;player-icn .Screen/addr DEO2
-	#05 .Screen/sprite DEO
-
-	.player/x LDZ2 .player/y LDZ2 ;to-scale JSR2
-	.player/r LDZ2 ;ray-pos JSR2 ;to-scale JSR2
-		#01 ;draw-line JSR2
-
-	.player/x LDZ2 .player/y LDZ2 ;to-scale JSR2
-	.player/r LDZ2 ( eye ) #0060 SUB2 #03ff AND2 ;ray-pos JSR2 ;to-scale JSR2
-		#02 ;draw-line JSR2
-
-	.player/x LDZ2 .player/y LDZ2 ;to-scale JSR2
-	.player/r LDZ2 ( eye ) #0060 ADD2 #03ff AND2 ;ray-pos JSR2 ;to-scale JSR2
-		#02 ;draw-line JSR2
- 
-JMP2r
-
-@fill-icn
-	ffff ffff ffff ffff
-
 @to-scale ( x* y* -- x* y* )
 
 	( scale ) SWP2 #01 SFT2 
 	( scale ) SWP2 #01 SFT2
-
-JMP2r
-
-@ray-pos ( angle* -- x* y* )
-
-	,&angle STR2
-	#0100 #0001
-	&r
-		[ LIT2 &angle $2 ] OVR2 ;raycast JSR2
-			DUP2 ,&y STR2
-			OVR2 ,&x STR2
-			;get-tile JSR2 NIP NIP ,&end JCN
-		INC2 GTH2k ,&r JCN
-	&end
-	POP2 POP2
-	( res ) [ LIT2 &x $2 ] [ LIT2 &y $2 ]
 
 JMP2r
 
@@ -350,63 +288,17 @@ JMP2r
 
 JMP2r
 
-@draw-line ( x1* y1* x2* y2* color -- )
-
-	( load ) STH ,&y STR2 ,&x STR2 .line/y STZ2 .line/x STZ2
-	,&x LDR2 .line/x LDZ2 SUB2 ;abs2 JSR2 .line/dx STZ2
-	#0000 ,&y LDR2 .line/y LDZ2 SUB2 ;abs2 JSR2 SUB2 .line/dy STZ2
-	#ffff #00 .line/x LDZ2 ,&x LDR2 ;lts2 JSR2 DUP2 ADD2 ADD2 ,&sx STR2
-	#ffff #00 .line/y LDZ2 ,&y LDR2 ;lts2 JSR2 DUP2 ADD2 ADD2 ,&sy STR2
-	.line/dx LDZ2 .line/dy LDZ2 ADD2 .line/e1 STZ2
-	&loop
-		.line/x LDZ2 DUP2 .Screen/x DEO2 [ LIT2 &x $2 ] EQU2
-		.line/y LDZ2 DUP2 .Screen/y DEO2 [ LIT2 &y $2 ] EQU2
-			STHkr .Screen/pixel DEO
-			AND ,&end JCN
-		.line/e1 LDZ2 DUP2 ADD2 DUP2
-		.line/dy LDZ2 ;lts2 JSR2 ,&skipy JCN
-			.line/e1 LDZ2 .line/dy LDZ2 ADD2 .line/e1 STZ2
-			.line/x LDZ2 [ LIT2 &sx $2 ] ADD2 .line/x STZ2
-		&skipy
-		.line/dx LDZ2 ;gts2 JSR2 ,&skipx JCN
-			.line/e1 LDZ2 .line/dx LDZ2 ADD2 .line/e1 STZ2
-			.line/y LDZ2 [ LIT2 &sy $2 ] ADD2 .line/y STZ2
-		&skipx
-		,&loop JMP
-	&end
-	POPr
-
-JMP2r
-
-@abs2 DUP2 #0f SFT2 EQU #05 JCN #0000 SWP2 SUB2 JMP2r
-@lts2 #8000 STH2k ADD2 SWP2 STH2r ADD2 GTH2 JMP2r
-@gts2 #8000 STH2k ADD2 SWP2 STH2r ADD2 LTH2 JMP2r
-
 @clear-viewport
-
 	;eraser-box .Screen/addr DEO2
 
-    #0080 ( set limit )
-    #0000 ( set initial y )
-     &loop-y
-        DUP2 .Screen/y DEO2 ( set y coordinate )
-
-        ( draw row )
-        #0110 #0010 ( set limit and initial x )
-         &loop-x
-            DUP2 .Screen/x DEO2 ( set x coordinate )
-
-            #40 .Screen/sprite DEO
-
-            #000f ADD2 ( increment x )
-            GTH2k ( is the width greater than x? aka is x less than the width ? )
-            ,&loop-x JCN ( jump if x is less than the limit )
-        POP2 POP2 ( remove x and limit )
-
-        #0016 ADD2 ( increment y )
-        GTH2k ( is the limit greater than y? aka is y less than the limit ? )
-        ,&loop-y JCN ( jump if y is less than the limit )
-    POP2 POP2 ( remove y and limit )
+	#f2 .Screen/auto DEO
+	#0200
+	&l
+		DUP #00 SWP #0080 MUL2 #0010 ADD2 .Screen/x DEO2
+		#0000 .Screen/y DEO2
+		#40 .Screen/sprite DEOk DEOk DEOk DEOk DEOk DEOk DEOk DEOk DEOk DEOk DEOk DEOk DEOk DEOk DEOk DEO
+		INC GTHk ,&l JCN
+	POP2
 
 JMP2r
 
@@ -508,30 +400,30 @@ JMP2r
 
 	.shoot-frame LDZ INC .shoot-frame STZ
 	  
-	  #0081 #0031 ;clear-box JSR2
+	  #0088 #0038 ;clear-box JSR2
 
       .shoot-frame LDZ
       3MOD 
 
 	  DUP #00 NEQ ,&no-f JCN
-	  #0081 #0031 ;bullet0 ;draw-box JSR2
+	  #0088 #0038 ;bullet0 ;draw-box JSR2
 	  ,&end-a JMP
 	  
 	  &no-f
 	  DUP #01 NEQ ,&no-s JCN
-	  #0081 #0031 ;bullet1 ;draw-box JSR2
+	  #0088 #0038 ;bullet1 ;draw-box JSR2
 	  ,&end-a JMP
 
 	  &no-s
 	  DUP #02 NEQ ,&no-t JCN
-	  #0081 #0031 ;bullet2 ;draw-box JSR2
+	  #0088 #0038 ;bullet2 ;draw-box JSR2
 	  ,&end-a JMP
 
 	  &no-t
-	  #0081 #0031 ;bullet3 ;draw-box JSR2
+	  #0088 #0038 ;bullet3 ;draw-box JSR2
 	  #10 .shoot-frame STZ
 
-	  #0081 #0031 ;clear-box JSR2
+	  #0088 #0038 ;clear-box JSR2
 
 	  &end-a
 	  POP
@@ -589,26 +481,21 @@ JMP2r
 
 JMP2r
 
-
-@player-icn
-	0010 387c 3810 0000
-
-
 @door-code1 02
 @level1
 01 01 01 01 01 01 01 02 01 01 01 01 01 01 01 01
 01 00 00 00 00 00 00 00 00 00 00 00 01 00 00 01
-01 00 10 00 00 00 00 00 00 00 00 00 01 00 00 01
-01 00 00 00 00 00 00 00 00 00 20 00 01 00 00 01
+01 00 10 00 00 00 00 00 00 00 00 20 01 00 00 01
+01 00 00 00 00 00 00 00 00 00 00 00 01 00 00 01
 01 01 01 01 01 00 00 00 00 00 00 00 01 00 00 01
 01 00 00 00 01 00 00 00 00 00 00 00 01 00 00 01
-01 00 00 00 01 10 00 00 00 00 00 00 01 00 00 01
+01 00 00 00 01 00 10 00 00 00 00 00 01 00 00 01
 01 00 00 00 01 00 00 00 00 00 00 00 01 00 00 01
 01 00 00 00 01 01 01 01 01 00 00 00 01 00 00 01
+01 00 00 00 00 00 00 00 01 00 10 00 01 00 00 01
 01 00 00 00 00 00 00 00 01 00 00 00 01 00 00 01
 01 00 00 00 00 00 00 00 01 00 00 00 01 00 00 01
-01 00 00 00 00 00 00 00 01 00 00 00 01 00 00 01
-01 00 00 00 00 00 00 00 01 00 10 00 01 01 01 01
+01 00 00 00 00 00 00 00 01 00 00 00 01 01 01 01
 01 00 00 00 00 00 00 00 01 00 00 00 00 00 00 01
 01 00 00 00 00 00 00 00 01 00 00 00 00 00 00 01
 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01
@@ -653,16 +540,16 @@ JMP2r
 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01
 
 @e-zero-0
-&tile0 [ 0000 0304 0808 0818  0000 0000 0000 0000 ]
- &tile1 [ 0000 e010 0808 080c  0000 0000 0000 0000 ]
- &tile2 [ 2828 0804 0302 0202  0000 0000 0000 0000 ]
- &tile3 [ 0a0a 0810 e040 4040  0000 0000 0000 0000 ]
+&tile0 [ 0000 0708 1010 1030 000f 1830 2020 60c0 ]
+ &tile1 [ 0000 e010 0808 080c 00f0 180c 0404 0603 ]
+ &tile2 [ 5050 1008 0702 0202 a0a0 e010 180d 0505 ]
+ &tile3 [ 0a0a 0810 e040 4040 0505 0708 18b0 a0a0 ]
 
  @e-one-0
-&tile0 [ 0003 0707 0101 0305  0000 0000 0000 0000 ]
- &tile1 [ 0080 8080 8080 c0a0  0000 0000 0000 0000 ]
- &tile2 [ 0501 010f 0f04 0404  0000 0000 0000 0000 ]
- &tile3 [ a080 80f0 f020 2020  0000 0000 0000 0000 ]
+&tile0 [ 0000 0103 0701 0107 0003 060c 080e 0e18 ]
+ &tile1 [ 0000 8080 8080 80e0 00c0 4040 4040 7018 ]
+ &tile2 [ 0901 010f 0f02 0202 161e 1e10 101d 0505 ]
+ &tile3 [ 9080 80f0 f040 4040 6878 7808 08b8 a0a0 ]
 
 
 @dc-2
