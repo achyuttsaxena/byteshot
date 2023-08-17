@@ -168,46 +168,25 @@ BRK
 
 			[ LIT2 &distance $2 ] [ LIT &color $1 ] ;draw-col JSR2
 			
-			,&distance-s LDR2 ,&distance LDR2 GTH2 ,&curr-0 JCN
+			,&distance-s LDR2 ,&distance LDR2 GTH2 ,&no-sprite1 JCN
 
-			,&curr-1 JMP
+			#01 ,&spflag LDR EQU ,&no-sprite JCN
+
+			[ LIT2 &distance-s $2 ] [ LIT &color-s $1 ] ;draw-enemy JSR2
+
+			#01 ,&spflag STR
+			,&no-sprite JMP
 
 		&no-sprite1
-			#00 ,&spprev STR
-			INC2 GTH2k ,&h JCN
-			,&no-sprite JMP
-		&no-sprite2
-			#01 ,&spprev STR
-			INC2 GTH2k ,&h JCN
+			#00 ,&spflag STR
+
 		&no-sprite
-	POP2 POP2
+		INC2 GTH2k ,&h JCN
+		POP2 POP2
 JMP2r
 
-[ &color-s $1 ]
-
-&curr-1
-	,&color-s LDR ,&e-col STR
-	#01 ,&spcur STR
-	#01 ,&spprev LDR EQU ,&no-sprite2 JCN
-	.Screen/x DEI2 ,&spstart STR2
-,&no-sprite2 JMP
-
-&curr-0
-	#00 ,&spcur STR
-	#00 ,&spprev LDR EQU ,&no-sprite1 JCN
-	.Screen/x DEI2 ,&spend STR2
-	,&spstart LDR2 ,&spend LDR2 ADD2 #0002 DIV2 .Screen/x DEO2
-
-	[ LIT2 &distance-s $2 ] ,&e-col LDR ;draw-enemy JSR2
-	,&spend LDR2 .Screen/x DEO2
-,&no-sprite1 JMP
-
-
-[ &spstart $2 ]
-[ &spend $2 ]
-[ &spprev $1 ]
-[ &spcur $1 ]
 [ &e-col $1 ]
+[ &spflag $1 ]
 
 @draw-col ( distance* color -- )
 
@@ -245,11 +224,33 @@ JMP2r
 	&zero-s
 	#0040 .Screen/y DEO2
 	.Screen/x DEI2 .Screen/y DEI2 ;e-zero-0 ;draw-box JSR2
-
 	,&end JMP
 	&one-s
 	#0040 .Screen/y DEO2
 	.Screen/x DEI2 .Screen/y DEI2 ;e-one-0 ;draw-box JSR2
+	&end
+	POP
+JMP2r
+
+@draw-enemy1 ( distance color --  )
+	ROT ROT POP2 
+
+	DUP #10 EQU ,&zero-s JCN
+	DUP #20 EQU ,&one-s JCN
+	,&end JMP
+	
+	&zero-s
+	#0040 .Screen/y DEO2
+	( .Screen/x DEI2 .Screen/y DEI2 ;e-zero-0 ;draw-box JSR2 )
+
+	#42 .Screen/pixel DEO
+
+	,&end JMP
+	&one-s
+	#0040 .Screen/y DEO2
+	( .Screen/x DEI2 .Screen/y DEI2 ;e-one-0 ;draw-box JSR2 )
+
+	#43 .Screen/pixel DEO
 
 	&end
 	POP
@@ -319,7 +320,7 @@ JMP2r
 	;eraser-box .Screen/addr DEO2
 
 	#f2 .Screen/auto DEO
-	#0200
+	#0300
 	&l
 		DUP #00 SWP #0080 MUL2 #0010 ADD2 .Screen/x DEO2
 		#0000 .Screen/y DEO2
@@ -508,6 +509,23 @@ JMP2r
 
 JMP2r
 
+@game-over
+
+;eraser-box .Screen/addr DEO2
+
+	#f2 .Screen/auto DEO
+	#0200
+	&l
+		DUP #00 SWP #0080 MUL2 #0010 ADD2 .Screen/x DEO2
+		#0000 .Screen/y DEO2
+		#44 .Screen/sprite DEOk DEOk DEOk DEOk DEOk DEOk DEOk DEOk DEOk DEOk DEOk DEOk DEOk DEOk DEOk DEO
+		INC GTHk ,&l JCN
+	POP2
+
+
+
+BRK
+
 @door-code1 02
 @level1
 01 01 01 01 01 01 01 02 01 01 01 01 01 01 01 01
@@ -598,10 +616,22 @@ JMP2r
  &tile3 [ 2020 2020 20e0 0000   0000 0000 0000 0000 ]
 
 @eraser-box
-&tile0 [ ffff ffff ffff ffff  0000 0000 0000 0000 ]
- &tile1 [ ffff ffff ffff ffff  0000 0000 0000 0000 ]
- &tile2 [ ffff ffff ffff ffff  0000 0000 0000 0000 ]
- &tile3 [ ffff ffff ffff ffff  0000 0000 0000 0000 ]
+&tile0 [ ffff ffff ffff ffff ]
+ &tile1 [ ffff ffff ffff ffff ]
+ &tile2 [ ffff ffff ffff ffff ]
+ &tile3 [ ffff ffff ffff ffff ]
+ &tile4 [ ffff ffff ffff ffff ]
+ &tile5 [ ffff ffff ffff ffff ]
+ &tile6 [ ffff ffff ffff ffff ]
+ &tile7 [ ffff ffff ffff ffff ]
+ &tile8 [ ffff ffff ffff ffff ]
+ &tile9 [ ffff ffff ffff ffff ]
+ &tilea [ ffff ffff ffff ffff ]
+ &tileb [ ffff ffff ffff ffff ]
+ &tilec [ ffff ffff ffff ffff ]
+ &tiled [ ffff ffff ffff ffff ]
+ &tilee [ ffff ffff ffff ffff ]
+ &tilef [ ffff ffff ffff ffff ]
 
 @empty-box
 &tile0 [ ff 80 80 80 80 80 80 80 00 00 00 00 00 00 00 00 ]
@@ -651,6 +681,23 @@ JMP2r
  &tile2 [ 0000 0000 0000 0000 0100 0000 0000 0000 ]
  &tile3 [ 8000 0000 0000 0000 0000 0000 0000 0000 ]
 
+@game-over-sprite
+&tile0 [ ffff ffff ffff ffff 0000 0000 0000 0000 ]
+ &tile1 [ ffff ffff ffff ffff 0000 0000 0000 0000 ]
+ &tile2 [ ffff ffff ffff ffff 0000 0000 0000 0000 ]
+ &tile3 [ ffff ffff ffff ffff 0000 0000 0000 0000 ]
+ &tile4 [ ffff ffff ffff ffff 0000 0000 0000 0000 ]
+ &tile5 [ ffff ffff ffff ffff 0000 0000 0000 0000 ]
+ &tile6 [ ffff ffff ffff ffff 0000 0000 0000 0000 ]
+ &tile7 [ ffff ffff ffff ffff 0000 0000 0000 0000 ]
+ &tile8 [ ffff ffff ffff ffff 0000 0000 0000 0000 ]
+ &tile9 [ ffff ffff ffff ffff 0000 0000 0000 0000 ]
+ &tilea [ ffff ffff ffff ffff 0000 0000 0000 0000 ]
+ &tileb [ ffff ffff ffff ffff 0000 0000 0000 0000 ]
+ &tilec [ ffff ffff ffff ffff 0000 0000 0000 0000 ]
+ &tiled [ ffff ffff ffff ffff 0000 0000 0000 0000 ]
+ &tilee [ ffff ffff ffff ffff 0000 0000 0000 0000 ]
+ &tilef [ ffff ffff ffff ffff 0000 0000 0000 0000 ]
 
 @sin60
 	8000 8000 8100 8200 8300 8300 8400 8500 
