@@ -27,6 +27,10 @@
 
 	@shoot-frame $1
 
+	@go $1
+
+	@complete $1
+
 |0100
 
 	#0ff2 .System/r DEO2
@@ -60,7 +64,10 @@ BRK
 	#00c0 .player/x STZ2
 	#00e0 .player/y STZ2
 
-	#00 .counter STZ
+	#00
+	DUP .go STZ
+	DUP .complete STZ
+	.counter STZ
 
 	#10 DUP DUP DUP
 	.sequence/1 STZ
@@ -77,6 +84,12 @@ BRK
 JMP2r
 
 @on-frame ( -> )
+
+	.go LDZ #01 NEQ ,&cont JCN
+
+	BRK
+
+	&cont
 
 	.Controller/button DEI
 	DUP #10 AND #00 EQU ,&no-u JCN
@@ -132,6 +145,16 @@ JMP2r
 
 @on-button ( -> )
 
+	.go LDZ #01 EQU ,&end JCN
+
+	.Controller/key DEI
+	LIT "p NEQ ,&cont JCN
+
+	#00 .current-level STZ
+	;initialize-level JSR2
+	;update JSR2
+
+	&cont 
 	.Controller/button DEI 
 	DUP #01 AND #00 EQU ,&no-a JCN
 		;shoot JSR2
@@ -142,11 +165,19 @@ JMP2r
 		OVR2 OVR2 ;get-tile JSR2 NIP NIP
 
 		#03 NEQ ,&no-b JCN
+		#02 .current-level NEQ ,&cont1 JCN
+		#01 .complete STZ
+		;game-over JMP2
+
+		&cont1
 		;next-level JSR2
+
 	&no-b
 	POP
 
 	;update JSR2
+
+	&end
 
 BRK
 
@@ -465,8 +496,7 @@ JMP2r
 JMP2r
 
 @shoot
-
-	.ammo LDZ2 #0000 EQU2 ,&enda JCN
+	.ammo LDZ2 #0000 EQU2 ;game-over JCN2
 
 	#00 .shoot-frame STZ
 	.ammo LDZ2 #0001 SUB2 .ammo STZ2
@@ -517,18 +547,65 @@ JMP2r
 
 @game-over
 
-;eraser-box .Screen/addr DEO2
+	#01 .go STZ
+
+	;eraser-box .Screen/addr DEO2
 
 	#f2 .Screen/auto DEO
-	#0200
+	#0300
 	&l
 		DUP #00 SWP #0080 MUL2 #0010 ADD2 .Screen/x DEO2
 		#0000 .Screen/y DEO2
-		#44 .Screen/sprite DEOk DEOk DEOk DEOk DEOk DEOk DEOk DEOk DEOk DEOk DEOk DEOk DEOk DEOk DEOk DEO
+		#04 .Screen/sprite 
+		DEOk DEOk DEOk DEOk DEOk DEOk DEOk DEOk DEOk DEOk 
+		DEOk DEOk DEOk DEOk DEOk DEOk DEOk DEOk DEOk DEOk 
+		DEOk DEO 
 		INC GTHk ,&l JCN
 	POP2
 
+	#0300
+	&l1
+		DUP #00 SWP #0080 MUL2 #0010 ADD2 .Screen/x DEO2
+		#0000 .Screen/y DEO2
+		#44 .Screen/sprite 
+		DEOk DEOk DEOk DEOk DEOk DEOk DEOk DEOk DEOk DEOk 
+		DEOk DEOk DEOk DEOk DEOk DEOk DEOk DEOk DEOk DEOk 
+		DEOk DEO 
+		INC GTHk ,&l1 JCN
+	POP2
 
+
+	;game-over-sprite .Screen/addr DEO2
+
+	#f6 .Screen/auto DEO
+
+	.Screen/width DEI2 #01 SFT2 #0040 SUB2 .Screen/x DEO2
+	.Screen/height DEI2 #01 SFT2 #000f SUB2 .Screen/y DEO2
+
+	#c5 .Screen/sprite DEOk DEO
+
+	.complete LDZ #00 EQU ,&end JCN
+
+	#56 .Screen/auto DEO
+
+	;thanks .Screen/addr DEO2
+	.Screen/width DEI2 #01 SFT2 #0020 SUB2 .Screen/x DEO2
+	.Screen/height DEI2 #01 SFT2 #0010 ADD2 .Screen/y DEO2
+	#c5 .Screen/sprite DEO
+
+	#26 .Screen/auto DEO
+	;for .Screen/addr DEO2
+	.Screen/width DEI2 #01 SFT2 #0018 SUB2 .Screen/x DEO2
+	.Screen/height DEI2 #01 SFT2 #0018 ADD2 .Screen/y DEO2
+	#c5 .Screen/sprite DEO
+
+	#66 .Screen/auto DEO
+	;playing .Screen/addr DEO2
+	.Screen/width DEI2 #01 SFT2 #0020 SUB2 .Screen/x DEO2
+	.Screen/height DEI2 #01 SFT2 #0020 ADD2 .Screen/y DEO2
+	#c5 .Screen/sprite DEO
+
+	&end
 
 BRK
 
@@ -740,22 +817,62 @@ BRK
  &tile3 [ 8000 0000 0000 0000 0000 0000 0000 0000 ]
 
 @game-over-sprite
-&tile0 [ ffff ffff ffff ffff 0000 0000 0000 0000 ]
- &tile1 [ ffff ffff ffff ffff 0000 0000 0000 0000 ]
- &tile2 [ ffff ffff ffff ffff 0000 0000 0000 0000 ]
- &tile3 [ ffff ffff ffff ffff 0000 0000 0000 0000 ]
- &tile4 [ ffff ffff ffff ffff 0000 0000 0000 0000 ]
- &tile5 [ ffff ffff ffff ffff 0000 0000 0000 0000 ]
- &tile6 [ ffff ffff ffff ffff 0000 0000 0000 0000 ]
- &tile7 [ ffff ffff ffff ffff 0000 0000 0000 0000 ]
- &tile8 [ ffff ffff ffff ffff 0000 0000 0000 0000 ]
- &tile9 [ ffff ffff ffff ffff 0000 0000 0000 0000 ]
- &tilea [ ffff ffff ffff ffff 0000 0000 0000 0000 ]
- &tileb [ ffff ffff ffff ffff 0000 0000 0000 0000 ]
- &tilec [ ffff ffff ffff ffff 0000 0000 0000 0000 ]
- &tiled [ ffff ffff ffff ffff 0000 0000 0000 0000 ]
- &tilee [ ffff ffff ffff ffff 0000 0000 0000 0000 ]
- &tilef [ ffff ffff ffff ffff 0000 0000 0000 0000 ]
+&tile0 [ 000f 0808 0808 0808 0000 0000 0000 0000 ]
+ &tile1 [ 00e0 0000 0000 0000 0000 0000 0000 0000 ]
+ &tile2 [ 000f 0808 0808 0808 0000 0000 0000 0000 ]
+ &tile3 [ 00f0 1010 1010 1010 0000 0000 0000 0000 ]
+ &tile4 [ 0038 2824 2422 2221 0000 0000 0000 0000 ]
+ &tile5 [ 001c 1424 2444 4484 0000 0000 0000 0000 ]
+ &tile6 [ 000f 0808 0808 080f 0000 0000 0000 0000 ]
+ &tile7 [ 00f0 0000 0000 00f0 0000 0000 0000 0000 ]
+ &tile8 [ 000f 0808 0808 0808 0000 0000 0000 0000 ]
+ &tile9 [ 00f0 1010 1010 1010 0000 0000 0000 0000 ]
+ &tilea [ 0010 1010 0808 0804 0000 0000 0000 0000 ]
+ &tileb [ 0008 0808 1010 1020 0000 0000 0000 0000 ]
+ &tilec [ 000f 0808 0808 080f 0000 0000 0000 0000 ]
+ &tiled [ 00f0 0000 0000 00f0 0000 0000 0000 0000 ]
+ &tilee [ 000f 0808 0808 0808 0000 0000 0000 0000 ]
+ &tilef [ 00e0 2020 2020 2020 0000 0000 0000 0000 ]
+
+ &tileg [ 0808 0808 0f00 0000 0000 0000 0000 0000 ]
+ &tileh [ 7010 1010 f000 0000 0000 0000 0000 0000 ]
+ &tilei [ 0f08 0808 0800 0000 0000 0000 0000 0000 ]
+ &tilej [ f010 1010 1000 0000 0000 0000 0000 0000 ]
+ &tilek [ 2120 2020 2000 0000 0000 0000 0000 0000 ]
+ &tilel [ 8404 0404 0400 0000 0000 0000 0000 0000 ]
+ &tilem [ 0808 0808 0f00 0000 0000 0000 0000 0000 ]
+ &tilen [ 0300 0000 f000 0000 0000 0000 0000 0000 ]
+ &tileo [ c808 0808 0f00 0000 0000 0000 0000 0000 ]
+ &tilep [ 1010 1010 f000 0000 0000 0000 0000 0000 ]
+ &tileq [ 0404 0202 0100 0000 0000 0000 0000 0000 ]
+ &tiler [ 2020 4040 8000 0000 0000 0000 0000 0000 ]
+ &tiles [ 0808 0808 0f00 0000 0000 0000 0000 0000 ]
+ &tilet [ 0000 0000 f000 0000 0000 0000 0000 0000 ]
+ &tileu [ 0f09 0808 0800 0000 0000 0000 0000 0000 ]
+ &tilev [ c000 8040 2000 0000 0000 0000 0000 0000 ]
+
+ @thanks
+ &tile0 [ 007c 1010 1010 0000 0000 0000 0000 0000 ]
+ &tile1 [ 0048 4878 4848 0000 0000 0000 0000 0000 ]
+ &tile2 [ 0078 4878 4848 0000 0000 0000 0000 0000 ]
+ &tile3 [ 0064 5454 4c44 0000 0000 0000 0000 0000 ]
+ &tile4 [ 0048 5060 5048 0000 0000 0000 0000 0000 ]
+ &tile5 [ 0070 4070 1070 0000 0000 0000 0000 0000 ]
+
+ @for
+&tile0 [ 0070 4070 4040 0000 0000 0000 0000 0000 ]
+ &tile1 [ 0078 4848 4878 0000 0000 0000 0000 0000 ]
+ &tile2 [ 0070 4878 5048 0000 0000 0000 0000 0000 ]
+
+ @playing
+ &tile0 [ 0070 4870 4040 0000 0000 0000 0000 0000 ]
+ &tile1 [ 0040 4040 4070 0000 0000 0000 0000 0000 ]
+ &tile2 [ 0078 4878 4848 0000 0000 0000 0000 0000 ]
+ &tile3 [ 0050 5070 2020 0000 0000 0000 0000 0000 ]
+ &tile4 [ 0070 2020 2070 0000 0000 0000 0000 0000 ]
+ &tile5 [ 0064 5454 4c44 0000 0000 0000 0000 0000 ]
+ &tile6 [ 0078 4058 4878 0000 0000 0000 0000 0000 ]
+
 
 @sin60
 	8000 8000 8100 8200 8300 8300 8400 8500 
