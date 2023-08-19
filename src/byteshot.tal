@@ -165,7 +165,7 @@ JMP2r
 		OVR2 OVR2 ;get-tile JSR2 NIP NIP
 
 		#03 NEQ ,&no-b JCN
-		#02 .current-level NEQ ,&cont1 JCN
+		#02 .current-level LDZ NEQ ,&cont1 JCN
 		#01 .complete STZ
 		;game-over JMP2
 
