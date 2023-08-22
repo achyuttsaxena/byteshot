@@ -22,7 +22,7 @@ Objective of the game -
 
 The objective is to unlock the door of the level which can be done using the door code for that level. The enemies are to be killed in a specific order to form the binary representation of the door code
 
-for example if the code is 3 then its binary represntation becomes 0011 so in order to ulock the door the enemies of the corresponding type need to be killed in that order which will become to be
+for example if the code is 3 then its binary represntation becomes 0011 so in order to unlock the door the enemies of the corresponding type need to be killed in that order which will become to be
 
 1 -> 1 -> 0 -> 0
 
