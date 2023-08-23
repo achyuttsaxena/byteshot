@@ -6,7 +6,7 @@ To play the game,
 
 1. clone the repo
 2. cd into byteshot/uxn
-3. ./uxnemu.exe ../byteshot.rom
+3. run by typing - ./uxnemu.exe ../byteshot.rom
 
 Controls of the game -
 
