@@ -29,3 +29,8 @@ for example if the code is 3 then its binary represntation becomes 0011 so in or
 Once the correct code is achived the door will unlock and turn from red color to green.
 
 In order to pass through to the next level, the player should stand in front of it and press ( left alt) to open it.
+
+Note -
+The walls are represented by white color.
+The door initially in its locked state is represented by red color.
+After unlocking the door with the correct code the color changes from red to green.
